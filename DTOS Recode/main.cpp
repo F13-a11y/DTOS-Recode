@@ -50,6 +50,10 @@ int main() {
         cout << "  talk        - text-to-speech: talk \"text\" <1-5 speed>" << '\n';
         cout << "  echo        - print text" << '\n';
         cout << "  about       - show about info" << '\n';
+        cout << "  scrsvr      - list/run system screensavers or use 'scrsvr spec' to pick a custom .scr" << '\n';
+        cout << "  xorenc      - XOR-encrypt text: xorenc \"text\" \"key\" -> outputs hex" << '\n';
+        cout << "  xordec      - XOR-decrypt hex: xordec \"hex\" \"key\" -> outputs text" << '\n';
+        cout << "  dev         - open author link in default browser" << '\n';
 
     };
 
@@ -161,6 +165,119 @@ int main() {
             cout << '\n';
         } else if (cmd == "about") {
             cout << ANSI_BYELLOW << "Version: " << VER << "\nAuthor: " << AUTHOR << ANSI_RESET << '\n';
+        } else if (cmd == "dev") {
+            // open AUTHOR link in default browser
+            HINSTANCE r = ShellExecuteA(NULL, "open", AUTHOR, NULL, NULL, SW_SHOWNORMAL);
+            if ((INT_PTR)r <= 32) cout << "dev: failed to open link\n";
+            else cout << "dev: opened " << AUTHOR << "\n";
+        } else if (cmd == "xorenc") {
+            if (args.size() < 3) { cout << "xorenc: usage: xorenc \"text\" \"key\"\n"; }
+            else {
+                string text = args[1];
+                string key = args[2];
+                if (key.empty()) { cout << "xorenc: key cannot be empty\n"; }
+                else {
+                    string out; out.reserve(text.size());
+                    for (size_t i = 0; i < text.size(); ++i) out.push_back(text[i] ^ key[i % key.size()]);
+                    // output as hex
+                    std::ostringstream oss;
+                    oss << std::hex << std::setfill('0');
+                    for (unsigned char c : out) oss << std::setw(2) << (int)c;
+                    cout << oss.str() << '\n';
+                }
+            }
+        } else if (cmd == "xordec") {
+            if (args.size() < 3) { cout << "xordec: usage: xordec \"hex\" \"key\"\n"; }
+            else {
+                string hex = args[1];
+                string key = args[2];
+                if (key.empty()) { cout << "xordec: key cannot be empty\n"; }
+                else {
+                    // normalize hex (allow upper/lower, optional spaces)
+                    string h; h.reserve(hex.size());
+                    for (char c : hex) if (!isspace((unsigned char)c)) h.push_back(c);
+                    if (h.size() % 2 != 0) { cout << "xordec: invalid hex length\n"; }
+                    else {
+                        string bytes; bytes.reserve(h.size()/2);
+                        try {
+                            for (size_t i = 0; i < h.size(); i += 2) {
+                                string byte = h.substr(i,2);
+                                unsigned int val = 0;
+                                std::stringstream ss; ss << std::hex << byte;
+                                ss >> val;
+                                bytes.push_back((char)val);
+                            }
+                        } catch(...) { cout << "xordec: invalid hex\n"; bytes.clear(); }
+                        if (!bytes.empty()) {
+                            string out; out.reserve(bytes.size());
+                            for (size_t i = 0; i < bytes.size(); ++i) out.push_back(bytes[i] ^ key[i % key.size()]);
+                            cout << out << '\n';
+                        }
+                    }
+                }
+            }
+        } else if (cmd == "scrsvr") {
+            // scrsvr [spec]
+            if (args.size() >= 2 && args[1] == "spec") {
+                string path = ofn_scr();
+                if (path.empty()) { cout << "scrsvr: canceled\n"; }
+                else {
+                    cout << "scrsvr: running custom screensaver: " << path << '\n';
+                    // Convert UTF-8 path to wide
+                    int needed = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, NULL, 0);
+                    std::wstring wpath(needed ? needed - 1 : 0, L'\0');
+                    if (needed) MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], needed);
+                    std::wstring cmdline = L"\"" + wpath + L"\" /s";
+                    STARTUPINFOW si = {0}; PROCESS_INFORMATION pi = {0}; si.cb = sizeof(si);
+                    BOOL ok = CreateProcessW(NULL, &cmdline[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+                    if (!ok) cout << "scrsvr: failed to start screensaver\n";
+                    else { cout << "scrsvr: started (pid=" << pi.dwProcessId << ")\n"; CloseHandle(pi.hThread); CloseHandle(pi.hProcess); }
+                }
+            } else {
+                // List system .scr files from system directory
+                WCHAR sysdir[MAX_PATH] = {0};
+                if (!GetSystemDirectoryW(sysdir, MAX_PATH)) {
+                    cout << "scrsvr: unable to get system directory\n";
+                } else {
+                    filesystem::path p(sysdir);
+                    vector<filesystem::path> scrs;
+                    try {
+                        for (auto &entry : filesystem::directory_iterator(p)) {
+                            if (!entry.is_regular_file()) continue;
+                            auto ext = entry.path().extension().wstring();
+                            for (auto &c : ext) c = towlower(c);
+                            if (ext == L".scr") scrs.push_back(entry.path());
+                        }
+                    } catch (...) {}
+
+                    if (scrs.empty()) {
+                        cout << "scrsvr: no screensavers found in system directory\n";
+                    } else {
+                        cout << "Available system screensavers:\n";
+                        for (size_t i = 0; i < scrs.size(); ++i) {
+                            cout << "  [" << (i+1) << "] " << scrs[i].filename().string();
+                            // also print friendly name without extension
+                            cout << "\n";
+                        }
+                        cout << "Select number to run (0 to cancel): ";
+                        string sel;
+                        if (!getline(cin, sel)) sel = "0";
+                        int idx = 0; try { idx = stoi(sel); } catch(...) { idx = 0; }
+                        if (idx <= 0 || (size_t)idx > scrs.size()) { cout << "scrsvr: canceled\n"; }
+                        else {
+                            auto chosen = scrs[idx-1];
+                            cout << "scrsvr: running " << chosen.filename().string() << "\n";
+                            // run with /s using wide CreateProcess
+                            std::wstring wpath = chosen.wstring();
+                            std::wstring cmdline = L"\"" + wpath + L"\" /s";
+                            STARTUPINFOW si = {0}; PROCESS_INFORMATION pi = {0}; si.cb = sizeof(si);
+                            BOOL ok = CreateProcessW(NULL, &cmdline[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+                            if (!ok) cout << "scrsvr: failed to start screensaver\n";
+                            else { cout << "scrsvr: started (pid=" << pi.dwProcessId << ")\n"; CloseHandle(pi.hThread); CloseHandle(pi.hProcess); }
+                        }
+                    }
+                }
+            }
         } else {
             cout << "Unknown command: " << cmd << " (type help)\n";
         }

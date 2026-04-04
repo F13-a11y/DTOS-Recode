@@ -132,7 +132,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="about.h" />
-    <ClInclude Include="aboutex.h" />
     <ClInclude Include="fileops.h" />
     <ClInclude Include="includeset.h" />
     <ClInclude Include="ofn.h" />
@@ -146,6 +145,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="color.h" />
+    <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

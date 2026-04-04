@@ -7,7 +7,7 @@
 */
 
 
-//ABOUT.H
+//ABOUT_H
 #define ABOUT_H
 #define VER "1.0.0"
 #define AUTHOR "https://github.com/F13-a11y"
