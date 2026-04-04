@@ -54,6 +54,8 @@ int main() {
         cout << "  xorenc      - XOR-encrypt text: xorenc \"text\" \"key\" -> outputs hex" << '\n';
         cout << "  xordec      - XOR-decrypt hex: xordec \"hex\" \"key\" -> outputs text" << '\n';
         cout << "  dev         - open author link in default browser" << '\n';
+        cout << "  ping        - ping a host (uses system ping)" << '\n';
+        cout << "  execute     - open a .dtos automation file and execute its commands" << '\n';
 
     };
 
@@ -170,6 +172,101 @@ int main() {
             HINSTANCE r = ShellExecuteA(NULL, "open", AUTHOR, NULL, NULL, SW_SHOWNORMAL);
             if ((INT_PTR)r <= 32) cout << "dev: failed to open link\n";
             else cout << "dev: opened " << AUTHOR << "\n";
+        } else if (cmd == "ping") {
+            if (args.size() < 2) { cout << "ping: usage: ping <host> [options]\n"; }
+            else {
+                // rebuild the rest of the arguments into a single command
+                std::string rest;
+                for (size_t i = 1; i < args.size(); ++i) {
+                    if (i > 1) rest += ' ';
+                    rest += args[i];
+                }
+                std::string full = std::string("ping ") + rest;
+                // use system() to run Windows ping
+                int rcode = system(full.c_str());
+                if (rcode != 0) cout << "ping: command finished with code " << rcode << "\n";
+            }
+        } else if (cmd == "execute") {
+            // execute: open a .dtos file and run its commands
+            string path = ofn_dtos();
+            if (path.empty()) { cout << "execute: canceled\n"; }
+            else {
+                cout << "execute: running automation file: " << path << "\n";
+                std::ifstream ifs(path);
+                if (!ifs) { cout << "execute: failed to open file\n"; }
+                else {
+                    string fileline;
+                    while (std::getline(ifs, fileline)) {
+                        // trim
+                        auto l = fileline;
+                        // remove BOM if present
+                        if (!l.empty() && (unsigned char)l[0] == 0xEF) {
+                            if (l.size() >= 3 && (unsigned char)l[1] == 0xBB && (unsigned char)l[2] == 0xBF) l = l.substr(3);
+                        }
+                        // trim spaces
+                        auto trim = [](string &s) {
+                            size_t b = 0; while (b < s.size() && isspace((unsigned char)s[b])) ++b;
+                            size_t e = s.size(); while (e > b && isspace((unsigned char)s[e-1])) --e;
+                            s = s.substr(b, e-b);
+                        };
+                        trim(l);
+                        if (l.empty()) continue;
+                        if (l.size() >= 1 && (l[0] == '#' || l[0] == ';')) continue;
+                        // expect lines like: run <command>[, loop N]
+                        string prefix = "run ";
+                        string lower = l;
+                        transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+                        if (lower.rfind(prefix, 0) != 0) { cout << "execute: skipping unsupported line: " << l << "\n"; continue; }
+                        string payload = l.substr(prefix.size());
+                        // split on comma to find loop
+                        string cmdpart = payload;
+                        int loops = 1;
+                        size_t comma = payload.find(',');
+                        if (comma != string::npos) {
+                            cmdpart = payload.substr(0, comma);
+                            string opt = payload.substr(comma + 1);
+                            trim(cmdpart); trim(opt);
+                            // opt expected like: loop 5
+                            string optlow = opt; transform(optlow.begin(), optlow.end(), optlow.begin(), ::tolower);
+                            if (optlow.rfind("loop", 0) == 0) {
+                                // parse number
+                                string num = opt.substr(4);
+                                trim(num);
+                                try { loops = stoi(num); } catch(...) { loops = 1; }
+                                if (loops < 1) loops = 1;
+                            }
+                        } else {
+                            trim(cmdpart);
+                        }
+                        // run loops times
+                        for (int i = 0; i < loops; ++i) {
+                            // parse command using splitArgs
+                            auto subargs = splitArgs(cmdpart);
+                            if (subargs.empty()) continue;
+                            string subcmd = subargs[0]; transform(subcmd.begin(), subcmd.end(), subcmd.begin(), ::tolower);
+                            if (subcmd == "talk") {
+                                if (subargs.size() < 2) { cout << "execute: talk missing text\n"; continue; }
+                                string text = subargs[1]; int speed = 3;
+                                if (subargs.size() >= 3) { try { speed = stoi(subargs[2]); } catch(...) { speed = 3; } }
+                                if (speed < 1) speed = 1; if (speed > 5) speed = 5;
+                                tts(text.c_str(), speed);
+                            } else if (subcmd == "echo") {
+                                for (size_t k = 1; k < subargs.size(); ++k) { if (k>1) cout << ' '; cout << subargs[k]; }
+                                cout << '\n';
+                            } else {
+                                // fallback: execute via cmd /C
+                                string combined;
+                                for (size_t k = 0; k < subargs.size(); ++k) {
+                                    if (k) combined += ' ';
+                                    combined += subargs[k];
+                                }
+                                string shellcmd = string("cmd /C ") + combined;
+                                system(shellcmd.c_str());
+                            }
+                        }
+                    }
+                }
+            }
         } else if (cmd == "xorenc") {
             if (args.size() < 3) { cout << "xorenc: usage: xorenc \"text\" \"key\"\n"; }
             else {

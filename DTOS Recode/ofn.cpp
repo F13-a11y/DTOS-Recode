@@ -15,6 +15,22 @@ static std::string wtos(const std::wstring &ws) {
     return strTo;
 }
 
+std::string ofn_dtos() {
+    wchar_t filename[MAX_PATH] = {0};
+    // Filter: .dtos files only
+    const wchar_t filter[] = L"DTOS Files\0*.dtos\0All Files\0*.*\0\0";
+    OPENFILENAMEW ofn = {0};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrFilter = filter;
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+    BOOL res = GetOpenFileNameW(&ofn);
+    if (!res) return std::string();
+    return wtos(std::wstring(filename));
+}
+
 std::string ofn_scr() {
     wchar_t filename[MAX_PATH] = {0};
     // Filter: Screensavers (.scr) only

@@ -44,5 +44,7 @@
     <None Include="color.h">
       <Filter>src\header</Filter>
     </None>
+    <None Include="EXEC.md" />
+    <None Include="examples\examplescript.dtos" />
   </ItemGroup>
 </Project>

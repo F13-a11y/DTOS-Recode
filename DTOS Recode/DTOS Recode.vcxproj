@@ -145,6 +145,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="color.h" />
+    <None Include="examples\examplescript.dtos" />
+    <None Include="EXEC.md" />
     <None Include="README.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

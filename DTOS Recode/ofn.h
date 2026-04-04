@@ -26,3 +26,5 @@ std::string ofn(bool allowSystem = false);
 // ofn_scr() - show an Open File dialog filtered to .scr files (screensavers)
 // Returns selected path as UTF-8 string or empty on cancel.
 std::string ofn_scr();
+// ofn_dtos() - show an Open File dialog filtered to .dtos files and return selected path as UTF-8
+std::string ofn_dtos();

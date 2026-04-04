@@ -13,12 +13,6 @@ The original DTOS (Double Tap Operating Shell) source code was lost. This reposi
 
 This release aims to preserve the original behavior while producing clearer, safer, and more maintainable code.
 
-## Key features
-- Built-in commands: `help`, `cls`, `cdview`, `rundll`, `del`, `colorset`, `start`, `talk`, `echo`, `about`.
-- Screensaver management: `scrsvr` lists `.scr` files in the system directory and can run them; `scrsvr spec` opens a file picker filtered to `.scr` files for a custom selection.
-- Simple XOR encryption/decryption: `xorenc "text" "key"` and `xordec "hex" "key"`.
-- `dev` command opens the project author's GitHub URL in the default browser.
-
 ## Building
 Open the included Visual C++ solution in Visual Studio (tested with Visual Studio Community 2026) and build the solution. The project already includes required WinAPI headers and code.
 
@@ -27,13 +21,6 @@ Quick steps:
 2. Build -> Build Solution.
 3. Run the produced executable from the Debug/Release output folder.
 
-## Usage examples
-- `help` — show available commands.
-- `scrsvr` — list `.scr` screensavers in the Windows system directory and choose one to run.
-- `scrsvr spec` — open an Open File dialog filtered to `.scr` files and run the selected screensaver.
-- `xorenc "hello" "key"` — XOR-encrypt `hello` with `key` and output the result as hex.
-- `xordec "hexstring" "key"` — XOR-decrypt the provided hex string with `key` and print the plaintext.
-- `dev` — open the author's GitHub page in the default browser.
 
 ## Contributing
 - Fork the repository, create a branch for your changes, and submit a pull request.

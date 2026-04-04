@@ -1,0 +1,4 @@
+# Example .dtos file: greet_loop.dtos
+# Speak "Hello" 3 times then echo Done
+run talk "Hello" , loop 3
+run echo "Done"
