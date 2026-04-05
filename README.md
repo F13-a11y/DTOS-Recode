@@ -28,8 +28,5 @@ Quick steps:
 
 ## License
 See the repository's license file or contact the project owner for licensing details.
-
-## Note
-Sorry main source file's commits is turkish,i trying to push new english commits
 ---
 Project owner: https://github.com/F13-a11y
