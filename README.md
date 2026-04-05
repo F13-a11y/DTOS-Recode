@@ -39,3 +39,7 @@ Project owner: https://github.com/F13-a11y
 - Added richer command parsing (`talk`, `echo`, `sleep`, and shell passthrough).
 - Better UTF-8 BOM handling and comment skipping in script files.
 - Overall stability and maintainability improvements.
+
+### Version 2.0.1
+- Added History Command
+- Added sysinfo and sysinfoex
