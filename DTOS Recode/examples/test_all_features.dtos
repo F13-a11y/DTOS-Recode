@@ -1,0 +1,15 @@
+# Test script exercising automation features
+# - echo, talk, sleep, ping (via cmd), nested execute, loops
+
+run echo "Starting automation test"
+run talk "This is a test" , loop 1
+run sleep 500
+run ping 127.0.0.1
+run echo "Will call nested script next"
+# This will trigger the nested-execute warning because it references another .dtos
+run execute "examples\\nested.dtos"
+run echo "After nested (if allowed)"
+# Loop block: this plus other loops will exceed 15 to trigger the loop warning
+run echo "Looping section" , loop 10
+run talk "Final phrase" , loop 6
+run echo "Finished test"

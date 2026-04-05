@@ -46,5 +46,6 @@
     </None>
     <None Include="EXEC.md" />
     <None Include="examples\examplescript.dtos" />
+    <None Include="examples\test_all_features.dtos" />
   </ItemGroup>
 </Project>

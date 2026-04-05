@@ -2,7 +2,6 @@
 #include <string>
 #include <windows.h>
 
-// File filter components (English - not Chinese)
 // These are wchar_t literals to be used when building the OPENFILENAME filter buffer.
 // Each filter chunk must be single-null terminated. We'll append a final '\0' for double termination in code.
 #define OFN_FILTER_TEXT   L"Text Files\0*.txt;*.log\0"

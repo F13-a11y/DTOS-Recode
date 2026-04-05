@@ -8,9 +8,8 @@
 #include <vector>
 #include <algorithm>
 #include <sstream>
-// aboutex removed per user request
 using namespace std;
-int main() {
+int main(int argc, char** argv) {
     // Enable ANSI escape sequence processing on Windows consoles
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE) {
@@ -35,6 +34,122 @@ int main() {
             out.push_back(token);
         }
         return out;
+    };
+
+    // Helper to run a .dtos automation file given a path.
+    auto run_dtos_file = [&](const string &path) {
+        if (path.empty()) { cout << "execute: canceled\n"; return; }
+        cout << "execute: running automation file: " << path << "\n";
+        std::ifstream ifs(path);
+        if (!ifs) { cout << "execute: failed to open file\n"; return; }
+        // Parse the file first into jobs (command string + loop count).
+        vector<pair<string,int>> jobs;
+        string fileline;
+        auto trim = [](string &s) {
+            size_t b = 0; while (b < s.size() && isspace((unsigned char)s[b])) ++b;
+            size_t e = s.size(); while (e > b && isspace((unsigned char)s[e-1])) --e;
+            s = s.substr(b, e-b);
+        };
+        while (std::getline(ifs, fileline)) {
+            string l = fileline;
+            if (!l.empty() && (unsigned char)l[0] == 0xEF) {
+                if (l.size() >= 3 && (unsigned char)l[1] == 0xBB && (unsigned char)l[2] == 0xBF) l = l.substr(3);
+            }
+            trim(l);
+            if (l.empty()) continue;
+            if (l.size() >= 1 && (l[0] == '#' || l[0] == ';')) continue;
+            string prefix = "run ";
+            string lower = l;
+            transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+            if (lower.rfind(prefix, 0) != 0) { cout << "execute: skipping unsupported line: " << l << "\n"; continue; }
+            string payload = l.substr(prefix.size());
+            string cmdpart = payload;
+            int loops = 1;
+            size_t comma = payload.find(',');
+            if (comma != string::npos) {
+                cmdpart = payload.substr(0, comma);
+                string opt = payload.substr(comma + 1);
+                trim(cmdpart); trim(opt);
+                string optlow = opt; transform(optlow.begin(), optlow.end(), optlow.begin(), ::tolower);
+                if (optlow.rfind("loop", 0) == 0) {
+                    string num = opt.substr(4);
+                    trim(num);
+                    try { loops = stoi(num); } catch(...) { loops = 1; }
+                    if (loops < 1) loops = 1;
+                }
+            } else {
+                trim(cmdpart);
+            }
+            jobs.emplace_back(cmdpart, loops);
+        }
+
+        long long totalLoops = 0;
+        for (auto &j : jobs) totalLoops += j.second;
+        bool doExecute = true;
+
+        // Detect nested execute usage
+        bool nestedExecute = false;
+        for (auto &j : jobs) {
+            auto tmp = splitArgs(j.first);
+            if (!tmp.empty()) {
+                string t0 = tmp[0]; transform(t0.begin(), t0.end(), t0.begin(), ::tolower);
+                if (t0 == "execute") { nestedExecute = true; break; }
+            }
+        }
+        if (nestedExecute) {
+            std::ostringstream ms2;
+            ms2 << "Automation file contains an 'execute' command which may open another .dtos script.\n"
+                << "Chaining automation files can be dangerous.\n\nRun anyway?";
+            int mb2 = MessageBoxA(NULL, ms2.str().c_str(), "DTOS Recode - Automation Warning", MB_YESNO | MB_ICONWARNING);
+            if (mb2 != IDYES) {
+                cout << "execute: canceled by user (nested execute)\n";
+                doExecute = false;
+            }
+        }
+
+        if (doExecute && totalLoops > 15) {
+            std::ostringstream ms;
+            ms << "Automation file requests " << totalLoops << " total loop iterations (>15).\n"
+               << "This may be malicious.\n\nRun the automation file?";
+            int mb = MessageBoxA(NULL, ms.str().c_str(), "DTOS Recode - Automation Warning", MB_YESNO | MB_ICONWARNING);
+            if (mb != IDYES) {
+                cout << "execute: canceled by user\n";
+                doExecute = false;
+            }
+        }
+
+        if (!doExecute) return;
+
+        for (auto &j : jobs) {
+            for (int rep = 0; rep < j.second; ++rep) {
+                auto subargs = splitArgs(j.first);
+                if (subargs.empty()) continue;
+                string subcmd = subargs[0]; transform(subcmd.begin(), subcmd.end(), subcmd.begin(), ::tolower);
+                if (subcmd == "talk") {
+                    if (subargs.size() < 2) { cout << "execute: talk missing text\n"; continue; }
+                    string text = subargs[1]; int speed = 3;
+                    if (subargs.size() >= 3) { try { speed = stoi(subargs[2]); } catch(...) { speed = 3; } }
+                    if (speed < 1) speed = 1; if (speed > 5) speed = 5;
+                    tts(text.c_str(), speed);
+                } else if (subcmd == "echo") {
+                    for (size_t k = 1; k < subargs.size(); ++k) { if (k>1) cout << ' '; cout << subargs[k]; }
+                    cout << '\n';
+                } else if (subcmd == "sleep") {
+                    if (subargs.size() >= 2) {
+                        int ms = 0; try { ms = stoi(subargs[1]); } catch(...) { ms = 0; }
+                        if (ms > 0) Sleep(ms);
+                    }
+                } else {
+                    string combined;
+                    for (size_t k = 0; k < subargs.size(); ++k) {
+                        if (k) combined += ' ';
+                        combined += subargs[k];
+                    }
+                    string shellcmd = string("cmd /C ") + combined;
+                    system(shellcmd.c_str());
+                }
+            }
+        }
     };
 
     auto printHelp = [&]() {
@@ -64,6 +179,8 @@ int main() {
 
     filesystem::path cwd = filesystem::current_path();
     bool cdView = false; // when true, prompt shows full path; otherwise shows !~.
+    // simple in-memory history of entered commands
+    vector<string> history;
     string line;
     while (true) {
         // Prompt
@@ -71,6 +188,8 @@ int main() {
         else cout << ANSI_BGREEN << "!~." << " > " << ANSI_RESET;
         if (!getline(cin, line)) break;
         if (line.empty()) continue;
+        // store non-empty input into history
+        history.push_back(line);
         auto args = splitArgs(line);
         if (args.empty()) continue;
         string cmd = args[0];
@@ -79,6 +198,10 @@ int main() {
 
         if (cmd == "help") {
             printHelp();
+        } else if (cmd == "history") {
+            // print simple command history
+            cout << "History (most recent last):\n";
+            for (size_t i = 0; i < history.size(); ++i) cout << "  " << (i+1) << ": " << history[i] << '\n';
         } else if (cmd == "cls" || cmd == "clear") {
             // ANSI clear
             cout << "\x1b[2J\x1b[H";
@@ -195,30 +318,30 @@ int main() {
                 std::ifstream ifs(path);
                 if (!ifs) { cout << "execute: failed to open file\n"; }
                 else {
+                    // Parse the file first into jobs (command string + loop count).
+                    // This lets us compute total loop iterations before executing
+                    // and warn the user if the script requests many iterations.
+                    vector<pair<string,int>> jobs;
                     string fileline;
+                    auto trim = [](string &s) {
+                        size_t b = 0; while (b < s.size() && isspace((unsigned char)s[b])) ++b;
+                        size_t e = s.size(); while (e > b && isspace((unsigned char)s[e-1])) --e;
+                        s = s.substr(b, e-b);
+                    };
+
                     while (std::getline(ifs, fileline)) {
-                        // trim
-                        auto l = fileline;
-                        // remove BOM if present
+                        string l = fileline;
                         if (!l.empty() && (unsigned char)l[0] == 0xEF) {
                             if (l.size() >= 3 && (unsigned char)l[1] == 0xBB && (unsigned char)l[2] == 0xBF) l = l.substr(3);
                         }
-                        // trim spaces
-                        auto trim = [](string &s) {
-                            size_t b = 0; while (b < s.size() && isspace((unsigned char)s[b])) ++b;
-                            size_t e = s.size(); while (e > b && isspace((unsigned char)s[e-1])) --e;
-                            s = s.substr(b, e-b);
-                        };
                         trim(l);
                         if (l.empty()) continue;
                         if (l.size() >= 1 && (l[0] == '#' || l[0] == ';')) continue;
-                        // expect lines like: run <command>[, loop N]
                         string prefix = "run ";
                         string lower = l;
                         transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
                         if (lower.rfind(prefix, 0) != 0) { cout << "execute: skipping unsupported line: " << l << "\n"; continue; }
                         string payload = l.substr(prefix.size());
-                        // split on comma to find loop
                         string cmdpart = payload;
                         int loops = 1;
                         size_t comma = payload.find(',');
@@ -226,10 +349,8 @@ int main() {
                             cmdpart = payload.substr(0, comma);
                             string opt = payload.substr(comma + 1);
                             trim(cmdpart); trim(opt);
-                            // opt expected like: loop 5
                             string optlow = opt; transform(optlow.begin(), optlow.end(), optlow.begin(), ::tolower);
                             if (optlow.rfind("loop", 0) == 0) {
-                                // parse number
                                 string num = opt.substr(4);
                                 trim(num);
                                 try { loops = stoi(num); } catch(...) { loops = 1; }
@@ -238,30 +359,82 @@ int main() {
                         } else {
                             trim(cmdpart);
                         }
-                        // run loops times
-                        for (int i = 0; i < loops; ++i) {
-                            // parse command using splitArgs
-                            auto subargs = splitArgs(cmdpart);
-                            if (subargs.empty()) continue;
-                            string subcmd = subargs[0]; transform(subcmd.begin(), subcmd.end(), subcmd.begin(), ::tolower);
-                            if (subcmd == "talk") {
-                                if (subargs.size() < 2) { cout << "execute: talk missing text\n"; continue; }
-                                string text = subargs[1]; int speed = 3;
-                                if (subargs.size() >= 3) { try { speed = stoi(subargs[2]); } catch(...) { speed = 3; } }
-                                if (speed < 1) speed = 1; if (speed > 5) speed = 5;
-                                tts(text.c_str(), speed);
-                            } else if (subcmd == "echo") {
-                                for (size_t k = 1; k < subargs.size(); ++k) { if (k>1) cout << ' '; cout << subargs[k]; }
-                                cout << '\n';
-                            } else {
-                                // fallback: execute via cmd /C
-                                string combined;
-                                for (size_t k = 0; k < subargs.size(); ++k) {
-                                    if (k) combined += ' ';
-                                    combined += subargs[k];
+                        jobs.emplace_back(cmdpart, loops);
+                    }
+
+                    long long totalLoops = 0;
+                    for (auto &j : jobs) totalLoops += j.second;
+                    // Execution control flag: whether to run the parsed jobs.
+                    bool doExecute = true;
+                    // Detect if any job attempts to call 'execute' (which would open
+                    // another .dtos). Treat this as potentially dangerous and warn.
+                    bool nestedExecute = false;
+                    for (auto &j : jobs) {
+                        auto tmp = splitArgs(j.first);
+                        if (!tmp.empty()) {
+                            string t0 = tmp[0]; transform(t0.begin(), t0.end(), t0.begin(), ::tolower);
+                            if (t0 == "execute") { nestedExecute = true; break; }
+                        }
+                    }
+                    if (nestedExecute) {
+                        std::ostringstream ms2;
+                        ms2 << "Automation file contains an 'execute' command which may open another .dtos script.\n"
+                            << "Chaining automation files can be dangerous.\n\nRun anyway?";
+                        int mb2 = MessageBoxA(NULL, ms2.str().c_str(), "DTOS Recode - Automation Warning", MB_YESNO | MB_ICONWARNING);
+                        if (mb2 != IDYES) {
+                            cout << "execute: canceled by user (nested execute)\n";
+                            doExecute = false;
+                        }
+                    }
+                    if (totalLoops > 15) {
+                        // Security check: warn the user when the automation file requests
+                        // a large number of total loop iterations. This helps detect
+                        // potentially malicious or runaway scripts before execution.
+                        // Show a MessageBox with Yes/No; if the user selects No, cancel.
+                        std::ostringstream ms;
+                        ms << "Automation file requests " << totalLoops << " total loop iterations (>15).\n"
+                           << "This may be malicious.\n\nRun the automation file?";
+                        int mb = MessageBoxA(NULL, ms.str().c_str(), "DTOS Recode - Automation Warning", MB_YESNO | MB_ICONWARNING);
+                        if (mb != IDYES) {
+                            cout << "execute: canceled by user\n";
+                            doExecute = false;
+                        }
+                    }
+
+                    if (doExecute) {
+                        for (auto &j : jobs) {
+                            for (int rep = 0; rep < j.second; ++rep) {
+                                auto subargs = splitArgs(j.first);
+                                if (subargs.empty()) continue;
+                                string subcmd = subargs[0]; transform(subcmd.begin(), subcmd.end(), subcmd.begin(), ::tolower);
+                                if (subcmd == "talk") {
+                                    if (subargs.size() < 2) { cout << "execute: talk missing text\n"; continue; }
+                                    string text = subargs[1]; int speed = 3;
+                                    if (subargs.size() >= 3) { try { speed = stoi(subargs[2]); } catch(...) { speed = 3; } }
+                                    if (speed < 1) speed = 1; if (speed > 5) speed = 5;
+                                    tts(text.c_str(), speed);
+                                // after each built-in command we may allow a brief sleep
+                                // if the command line included a 'sleep' token as: sleep <ms>
+                                // however sleep is implemented as its own run entry below.
+                                } else if (subcmd == "echo") {
+                                    for (size_t k = 1; k < subargs.size(); ++k) { if (k>1) cout << ' '; cout << subargs[k]; }
+                                    cout << '\n';
+                                } else {
+                                    string combined;
+                                    for (size_t k = 0; k < subargs.size(); ++k) {
+                                        if (k) combined += ' ';
+                                        combined += subargs[k];
+                                    }
+                            // Support a standalone 'sleep <ms>' command inside .dtos
+                            if (subcmd == "sleep") {
+                                if (subargs.size() >= 2) {
+                                    int ms = 0; try { ms = stoi(subargs[1]); } catch(...) { ms = 0; }
+                                    if (ms > 0) Sleep(ms);
                                 }
-                                string shellcmd = string("cmd /C ") + combined;
-                                system(shellcmd.c_str());
+                            }
+                                    string shellcmd = string("cmd /C ") + combined;
+                                    system(shellcmd.c_str());
+                                }
                             }
                         }
                     }

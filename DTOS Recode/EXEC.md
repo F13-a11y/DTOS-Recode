@@ -20,12 +20,15 @@ Format and syntax
   run <command>[, loop <N>]
   - `<command>` is the command string to execute. Use double quotes around multi-word arguments, e.g. `run talk "hello world" 3`.
   - Optional `, loop <N>` suffix repeats the command N times (N must be an integer >= 1). If omitted, the command runs once.
+  - You can also use a standalone `sleep <ms>` command to pause the script for the specified milliseconds.
+  - If a `run` line contains an `execute` command (which would open another `.dtos` script), the engine will warn you and require confirmation before running. Chaining automation files is considered potentially dangerous.
 
 Command handling
 ----------------
 - Built-in commands executed inside the application (handled directly by the automation engine):
   - `talk "text" [speed]` — uses the built-in TTS. `speed` is optional (1..5).
   - `echo arg1 arg2 ...` — prints arguments to the terminal.
+  - `sleep <ms>` — pause the script for <ms> milliseconds (e.g. `run sleep 500` pauses for 0.5s).
 - Any other command is executed via `cmd /C <command>` (Windows fallback). This allows running system commands such as `ping`, `dir`, etc.
 
 Parsing notes

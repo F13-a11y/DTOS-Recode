@@ -146,6 +146,7 @@
   <ItemGroup>
     <None Include="color.h" />
     <None Include="examples\examplescript.dtos" />
+    <None Include="examples\test_all_features.dtos" />
     <None Include="EXEC.md" />
     <None Include="README.md" />
   </ItemGroup>
