@@ -16,3 +16,6 @@
 #include <filesystem>
 #include <direct.h>
 #include <io.h>
+#include <string>
+#include <vector>
+#include <algorithm>

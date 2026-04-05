@@ -4,10 +4,7 @@
 #include "ofn.h"
 #include "fileops.h"
 #include "tts.h"
-#include <string>
-#include <vector>
-#include <algorithm>
-#include <sstream>
+#include "sysinfoembedded.h"
 using namespace std;
 int main(int argc, char** argv) {
     // Enable ANSI escape sequence processing on Windows consoles
@@ -171,7 +168,10 @@ int main(int argc, char** argv) {
         cout << "  dev         - open author link in default browser" << '\n';
         cout << "  ping        - ping a host (uses system ping)" << '\n';
         cout << "  execute     - open a .dtos automation file and execute its commands" << '\n';
-
+		cout << "  history     - show command history for this session" << '\n';
+		cout << ANSI_RED << "  urlmon" << ANSI_RESET << "     - download a file from its file link "<< ANSI_YELLOW << "(Coming Soon)" << ANSI_RESET << '\n';
+		cout << "  sysinfo      - show basic system information" << '\n';
+		cout << "  sysinfoex    - show system information using system command" << '\n';
     };
 
     cout << ANSI_BGREEN << "DTOS Recode  (" << VER << ")" << ANSI_RESET << '\n';
@@ -548,7 +548,24 @@ int main(int argc, char** argv) {
                     }
                 }
             }
-        } else {
+        }   // EASTER EGG
+        else if (cmd == "rickroll")
+        {
+            ShellExecuteA(NULL, "open", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", NULL, NULL, SW_SHOWNORMAL);
+        }
+        else if (cmd == "sysinfo") {
+			cout << ANSI_BYELLOW << "System Information:" << ANSI_RESET << '\n';
+			print_sysinfo();
+       
+            }
+        else if (cmd == "sysinfoex") {
+            cout << ANSI_BYELLOW << "Detailed System Information:" << ANSI_RESET << '\n';
+            system("systeminfo");
+		}
+        else if (cmd == "urlmon") {
+			MessageBoxA(NULL, "The 'urlmon' command is coming soon! This will allow downloading files from URLs directly in the terminal.", "Coming Soon", MB_OK | MB_ICONINFORMATION);
+		}
+        else {
             cout << "Unknown command: " << cmd << " (type help)\n";
         }
     }

@@ -135,12 +135,14 @@
     <ClInclude Include="fileops.h" />
     <ClInclude Include="includeset.h" />
     <ClInclude Include="ofn.h" />
+    <ClInclude Include="sysinfoembedded.h" />
     <ClInclude Include="tts.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fileops.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ofn.cpp" />
+    <ClCompile Include="sysinfoembedded.cpp" />
     <ClCompile Include="tts.cpp" />
   </ItemGroup>
   <ItemGroup>

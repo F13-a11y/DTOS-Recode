@@ -7,6 +7,9 @@
     <Filter Include="src\header">
       <UniqueIdentifier>{64ef4480-1327-4b39-900c-4bf324692caa}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\c">
+      <UniqueIdentifier>{69d5f2c2-b6c1-4d50-891e-120db87cb845}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tts.h">
@@ -24,6 +27,9 @@
     <ClInclude Include="fileops.h">
       <Filter>src\header</Filter>
     </ClInclude>
+    <ClInclude Include="sysinfoembedded.h">
+      <Filter>src\header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fileops.cpp">
@@ -37,6 +43,9 @@
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="sysinfoembedded.cpp">
+      <Filter>src\c</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
