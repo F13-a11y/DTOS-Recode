@@ -10,6 +10,9 @@
     <Filter Include="src\c">
       <UniqueIdentifier>{69d5f2c2-b6c1-4d50-891e-120db87cb845}</UniqueIdentifier>
     </Filter>
+    <Filter Include="extr">
+      <UniqueIdentifier>{bf92c130-54d0-42c7-bcaf-f16c86f53bb9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tts.h">
@@ -30,6 +33,12 @@
     <ClInclude Include="sysinfoembedded.h">
       <Filter>src\header</Filter>
     </ClInclude>
+    <ClInclude Include="windowhandler.h">
+      <Filter>src\header</Filter>
+    </ClInclude>
+    <ClInclude Include="scriptparser.h">
+      <Filter>src\header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="fileops.cpp">
@@ -45,16 +54,30 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="sysinfoembedded.cpp">
-      <Filter>src\c</Filter>
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="windowhandler.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="scriptparser.cpp">
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="README.md" />
     <None Include="color.h">
       <Filter>src\header</Filter>
     </None>
-    <None Include="EXEC.md" />
-    <None Include="examples\examplescript.dtos" />
-    <None Include="examples\test_all_features.dtos" />
+    <None Include="EXEC.md">
+      <Filter>extr</Filter>
+    </None>
+    <None Include="README.md">
+      <Filter>extr</Filter>
+    </None>
+    <None Include="examples\examplescript.dtos">
+      <Filter>extr</Filter>
+    </None>
+    <None Include="examples\test_all_features.dtos">
+      <Filter>extr</Filter>
+    </None>
   </ItemGroup>
 </Project>

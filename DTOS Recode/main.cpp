@@ -5,6 +5,8 @@
 #include "fileops.h"
 #include "tts.h"
 #include "sysinfoembedded.h"
+#include "windowhandler.h"
+#include "scriptparser.h"
 using namespace std;
 int main(int argc, char** argv) {
     // Enable ANSI escape sequence processing on Windows consoles
@@ -15,7 +17,6 @@ int main(int argc, char** argv) {
             SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
         }
     }
-
     // Capture default console attributes so we can reset later
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     WORD defaultAttr = 7;
@@ -33,63 +34,24 @@ int main(int argc, char** argv) {
         return out;
     };
 
-    // Helper to run a .dtos automation file given a path.
+    // Use the parser module we just added
     auto run_dtos_file = [&](const string &path) {
         if (path.empty()) { cout << "execute: canceled\n"; return; }
         cout << "execute: running automation file: " << path << "\n";
-        std::ifstream ifs(path);
-        if (!ifs) { cout << "execute: failed to open file\n"; return; }
-        // Parse the file first into jobs (command string + loop count).
-        vector<pair<string,int>> jobs;
-        string fileline;
-        auto trim = [](string &s) {
-            size_t b = 0; while (b < s.size() && isspace((unsigned char)s[b])) ++b;
-            size_t e = s.size(); while (e > b && isspace((unsigned char)s[e-1])) --e;
-            s = s.substr(b, e-b);
-        };
-        while (std::getline(ifs, fileline)) {
-            string l = fileline;
-            if (!l.empty() && (unsigned char)l[0] == 0xEF) {
-                if (l.size() >= 3 && (unsigned char)l[1] == 0xBB && (unsigned char)l[2] == 0xBF) l = l.substr(3);
-            }
-            trim(l);
-            if (l.empty()) continue;
-            if (l.size() >= 1 && (l[0] == '#' || l[0] == ';')) continue;
-            string prefix = "run ";
-            string lower = l;
-            transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-            if (lower.rfind(prefix, 0) != 0) { cout << "execute: skipping unsupported line: " << l << "\n"; continue; }
-            string payload = l.substr(prefix.size());
-            string cmdpart = payload;
-            int loops = 1;
-            size_t comma = payload.find(',');
-            if (comma != string::npos) {
-                cmdpart = payload.substr(0, comma);
-                string opt = payload.substr(comma + 1);
-                trim(cmdpart); trim(opt);
-                string optlow = opt; transform(optlow.begin(), optlow.end(), optlow.begin(), ::tolower);
-                if (optlow.rfind("loop", 0) == 0) {
-                    string num = opt.substr(4);
-                    trim(num);
-                    try { loops = stoi(num); } catch(...) { loops = 1; }
-                    if (loops < 1) loops = 1;
-                }
-            } else {
-                trim(cmdpart);
-            }
-            jobs.emplace_back(cmdpart, loops);
-        }
+        vector<DtosJob> jobs;
+        string err;
+        if (!parse_dtos_file(path, jobs, err)) { cout << "execute: failed to parse file: " << err << "\n"; return; }
 
         long long totalLoops = 0;
-        for (auto &j : jobs) totalLoops += j.second;
-        bool doExecute = true;
+        for (auto &j : jobs) totalLoops += j.loops;
 
+        bool doExecute = true;
         // Detect nested execute usage
         bool nestedExecute = false;
         for (auto &j : jobs) {
-            auto tmp = splitArgs(j.first);
-            if (!tmp.empty()) {
-                string t0 = tmp[0]; transform(t0.begin(), t0.end(), t0.begin(), ::tolower);
+            auto sa = splitArgs(j.command);
+            if (!sa.empty()) {
+                string t0 = sa[0]; transform(t0.begin(), t0.end(), t0.begin(), ::tolower);
                 if (t0 == "execute") { nestedExecute = true; break; }
             }
         }
@@ -98,28 +60,20 @@ int main(int argc, char** argv) {
             ms2 << "Automation file contains an 'execute' command which may open another .dtos script.\n"
                 << "Chaining automation files can be dangerous.\n\nRun anyway?";
             int mb2 = MessageBoxA(NULL, ms2.str().c_str(), "DTOS Recode - Automation Warning", MB_YESNO | MB_ICONWARNING);
-            if (mb2 != IDYES) {
-                cout << "execute: canceled by user (nested execute)\n";
-                doExecute = false;
-            }
+            if (mb2 != IDYES) { cout << "execute: canceled by user (nested execute)\n"; doExecute = false; }
         }
-
         if (doExecute && totalLoops > 15) {
             std::ostringstream ms;
             ms << "Automation file requests " << totalLoops << " total loop iterations (>15).\n"
                << "This may be malicious.\n\nRun the automation file?";
             int mb = MessageBoxA(NULL, ms.str().c_str(), "DTOS Recode - Automation Warning", MB_YESNO | MB_ICONWARNING);
-            if (mb != IDYES) {
-                cout << "execute: canceled by user\n";
-                doExecute = false;
-            }
+            if (mb != IDYES) { cout << "execute: canceled by user\n"; doExecute = false; }
         }
-
         if (!doExecute) return;
 
         for (auto &j : jobs) {
-            for (int rep = 0; rep < j.second; ++rep) {
-                auto subargs = splitArgs(j.first);
+            for (int rep = 0; rep < j.loops; ++rep) {
+                auto subargs = splitArgs(j.command);
                 if (subargs.empty()) continue;
                 string subcmd = subargs[0]; transform(subcmd.begin(), subcmd.end(), subcmd.begin(), ::tolower);
                 if (subcmd == "talk") {
@@ -138,10 +92,7 @@ int main(int argc, char** argv) {
                     }
                 } else {
                     string combined;
-                    for (size_t k = 0; k < subargs.size(); ++k) {
-                        if (k) combined += ' ';
-                        combined += subargs[k];
-                    }
+                    for (size_t k = 0; k < subargs.size(); ++k) { if (k) combined += ' '; combined += subargs[k]; }
                     string shellcmd = string("cmd /C ") + combined;
                     system(shellcmd.c_str());
                 }
@@ -172,6 +123,7 @@ int main(int argc, char** argv) {
 		cout << ANSI_RED << "  urlmon" << ANSI_RESET << "     - download a file from its file link "<< ANSI_YELLOW << "(Coming Soon)" << ANSI_RESET << '\n';
 		cout << "  sysinfo      - show basic system information" << '\n';
 		cout << "  sysinfoex    - show system information using system command" << '\n';
+		cout << "  window       - open a simple window for debugging, testing DLLs etc." << '\n';
     };
 
     cout << ANSI_BGREEN << "DTOS Recode  (" << VER << ")" << ANSI_RESET << '\n';
@@ -309,7 +261,12 @@ int main(int argc, char** argv) {
                 int rcode = system(full.c_str());
                 if (rcode != 0) cout << "ping: command finished with code " << rcode << "\n";
             }
-        } else if (cmd == "execute") {
+        }
+
+#pragma region PARSER
+
+
+        else if (cmd == "execute") {
             // execute: open a .dtos file and run its commands
             string path = ofn_dtos();
             if (path.empty()) { cout << "execute: canceled\n"; }
@@ -440,6 +397,9 @@ int main(int argc, char** argv) {
                     }
                 }
             }
+
+#pragma endregion
+
         } else if (cmd == "xorenc") {
             if (args.size() < 3) { cout << "xorenc: usage: xorenc \"text\" \"key\"\n"; }
             else {
@@ -548,7 +508,7 @@ int main(int argc, char** argv) {
                     }
                 }
             }
-        }   // EASTER EGG
+		}   // EASTER EGG FOR WHO JUST HAVES THE EXECUTABLE,NOT THE SOURCE CODE
         else if (cmd == "rickroll")
         {
             ShellExecuteA(NULL, "open", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", NULL, NULL, SW_SHOWNORMAL);
@@ -569,7 +529,5 @@ int main(int argc, char** argv) {
             cout << "Unknown command: " << cmd << " (type help)\n";
         }
     }
-
-    cout << "Goodbye.\n";
-    return 0;
+    cout << "Goodbye.\n";    return 0;
 }

@@ -49,6 +49,7 @@ std::string ofn_scr() {
 
 std::string ofn(bool allowSystem) {
     wchar_t filename[MAX_PATH] = {0};
+#pragma region OFNFILTERS
     // Build filter buffer explicitly as pairs: display\0pattern\0 ... final \0
     std::vector<std::pair<std::wstring, std::wstring>> chunks;
     chunks.emplace_back(L"Text Files", L"*.txt;*.log");
@@ -61,7 +62,7 @@ std::string ofn(bool allowSystem) {
         chunks.emplace_back(L"DLL Files", L"*.dll");
     }
     chunks.emplace_back(L"All Files", L"*.*");
-
+#pragma endregion
     std::vector<wchar_t> filterbuf;
     for (auto &p : chunks) {
         filterbuf.insert(filterbuf.end(), p.first.begin(), p.first.end());
