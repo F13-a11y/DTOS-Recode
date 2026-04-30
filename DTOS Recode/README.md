@@ -35,5 +35,5 @@ Project owner: https://github.com/F13-a11y
 ## Changelog
 
 ### Version 2.0.1
-- Added a new console command "windows" for debugging
+- Added a new console command "window" for debugging
 - Moved script parser to seperated file (It will be fixed soon)
