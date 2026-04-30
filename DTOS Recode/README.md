@@ -34,9 +34,6 @@ Project owner: https://github.com/F13-a11y
 
 ## Changelog
 
-### Version 2.0.0
-- Introduced **Enhanced Script System** for `.dtos` automation files.
-- Improved loop handling and safety checks (nested execute detection, loop count warnings).
-- Added richer command parsing (`talk`, `echo`, `sleep`, and shell passthrough).
-- Better UTF-8 BOM handling and comment skipping in script files.
-- Overall stability and maintainability improvements.
+### Version 2.0.1
+- Added a new console command "windows" for debugging
+- Moved script parser to seperated file (It will be fixed soon)
