@@ -13,6 +13,9 @@
     <Filter Include="extr">
       <UniqueIdentifier>{bf92c130-54d0-42c7-bcaf-f16c86f53bb9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\header\inline">
+      <UniqueIdentifier>{3462e48a-79e7-47aa-82c3-b392bda56bdd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="tts.h">
@@ -38,6 +41,9 @@
     </ClInclude>
     <ClInclude Include="scriptparser.h">
       <Filter>src\header</Filter>
+    </ClInclude>
+    <ClInclude Include="format.h">
+      <Filter>src\header\inline</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,3 +1,4 @@
+#include <signal.h>
 #include "includeset.h"
 #include "color.h"
 #include "about.h"
@@ -7,8 +8,21 @@
 #include "sysinfoembedded.h"
 #include "windowhandler.h"
 #include "scriptparser.h"
+#include "format.h"
+
+void kaboom();
+
+void kaboom() { // STACK OVERFLOW
+	kaboom();
+}
+
 using namespace std;
+
+
+
 int main(int argc, char** argv) {
+
+
     // Enable ANSI escape sequence processing on Windows consoles
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE) {
@@ -120,15 +134,20 @@ int main(int argc, char** argv) {
         cout << "  ping        - ping a host (uses system ping)" << '\n';
         cout << "  execute     - open a .dtos automation file and execute its commands" << '\n';
 		cout << "  history     - show command history for this session" << '\n';
-		cout << ANSI_RED << "  urlmon" << ANSI_RESET << "     - download a file from its file link "<< ANSI_YELLOW << "(Coming Soon)" << ANSI_RESET << '\n';
-		cout << "  sysinfo      - show basic system information" << '\n';
-		cout << "  sysinfoex    - show system information using system command" << '\n';
-		cout << "  window       - open a simple window for debugging, testing DLLs etc." << '\n';
+		cout << ANSI_RED << "  urlmon" << ANSI_RESET << "      - download a file from its file link "<< ANSI_YELLOW << "(Coming Soon)" << ANSI_RESET << '\n';
+		cout << "  sysinfo     - show basic system information" << '\n';
+		cout << "  sysinfoex   - show system information using system command" << '\n';
+		cout << "  window      - open a simple window for debugging, testing DLLs etc." << '\n';
+		cout << "  abort       - exit the program\n";
+		cout << "  crash       - intentionally crash the program" << ANSI_RED << " (Debug and Reverse Engineering Only)" << ANSI_RESET << '\n';
+		cout << "  format      - translate number formats\n";
+		cout << ANSI_BYELLOW << "Automation file format (.dtos):" << ANSI_RESET << '\n';
+		cout << ANSI_BLUE << "Read DTOSRULES.md for automation file syntax and security notes.\n" << ANSI_RESET;
     };
-
+	cout << "Build Date: " << ANSI_BLUE << __DATE__ << " " << __TIME__ << ANSI_RESET << '\n';
+	cout << "Timestamp View : " << ANSI_BLUE << __TIMESTAMP__ << ANSI_RESET << '\n';
     cout << ANSI_BGREEN << "DTOS Recode  (" << VER << ")" << ANSI_RESET << '\n';
     cout << "Type 'help' for commands.\n";
-
     filesystem::path cwd = filesystem::current_path();
     bool cdView = false; // when true, prompt shows full path; otherwise shows !~.
     // simple in-memory history of entered commands
@@ -525,6 +544,238 @@ int main(int argc, char** argv) {
         else if (cmd == "urlmon") {
 			MessageBoxA(NULL, "The 'urlmon' command is coming soon! This will allow downloading files from URLs directly in the terminal.", "Coming Soon", MB_OK | MB_ICONINFORMATION);
 		}
+		else if (cmd == "window") {
+			cout << "Opening a simple window. Close it to return to the terminal.\n";
+            HINSTANCE hInst = GetModuleHandle(NULL);
+            WindowHandler(hInst, L"TEST");
+		}
+        else if (cmd == "abort") {
+            cout << "Chose Abort Type\n1. Force Shutdown\n2. Normal Shutdown (w/o main function return)\n3. Custom Return Value" << ANSI_RED << " (Debug and Reverse Engineering Only)" << ANSI_RESET << "\n4. Slient\n5. Cancel\n" << ANSI_RED << "BE CAREFUL WHEN USING 'Custom Return Value' EXPECTION HANDLING NOT IMPLEMENTED" << ANSI_RESET << "\n";
+            string choice;
+            if (getline(cin, choice)) {
+                if (choice == "1") {
+                    TerminateProcess(GetCurrentProcess(), 1); // direkt process kill
+                }
+                else if (choice == "2") {
+                    ExitProcess(0);
+                }
+                else if (choice == "3") {
+                    int abortcode;
+                    cout << "Enter custom exit code (integer): ";
+                    cin >> abortcode;
+                    return abortcode;
+                }
+                else if (choice == "4") {
+                    FreeConsole();
+                    ExitProcess(0);
+                }
+                else if (choice == "5") {
+                    cout << "Exit canceled.\n";
+                }
+            }
+            else {
+                cout << "No input received. Exit canceled.\n";
+            }
+        }
+
+		else if (cmd == "crash") {
+            int crashChoice;
+			int warn = MessageBoxA(NULL, "This command will intentionally crash the program and may causes buffer overflow/stack overflow. Use for debugging or reverse engineering only.", "Warning", MB_OK | MB_ICONWARNING);
+			if (warn == IDOK) {
+                cout << "Crash Types:\n";
+                cout << "1. Null Pointer Dereference\n";
+                cout << "2. Buffer Overflow\n";
+                cout << "3. Stack Overflow\n";
+                cout << "4. Invalid Free\n";
+				cout << "5. Divide by zero" << ANSI_RED << " DEPRECATED" << ANSI_RESET << "\n";
+				cout << "6. Double Free\n";
+				cout << "7. Access violation (Illegal address)\n";
+				cout << "8. Unaligned memory access\n";
+                cout << "9. Sending abort signal to Kernel ( abort(); ) \n";
+                cout << "10. Segmentation Fault (Manually Raising Segmentation Fault)\n";
+			    cout << "11. Cancel\n";
+                cout << ANSI_BLUE << "0. More Information" << ANSI_RESET << "\n";
+                cin >> crashChoice;
+            }
+			if (crashChoice == 1) {
+				int* p = nullptr; *p = 42;
+			}
+			else if (crashChoice == 2) {
+				char buffer[10]; for (int i = 0; i < 20; ++i) buffer[i] = 'A';
+			}
+			else if (crashChoice == 3) {
+				kaboom();
+			}
+			else if (crashChoice == 4) {
+                int* p = (int*)0x1234;
+                delete p;
+			}
+
+			else if (crashChoice == 5) {
+				MessageBoxA(NULL, "The 'Divide by zero' crash type is deprecated and will not be executed to prevent potential issues. Please choose another crash type.", "Deprecated", MB_OKCANCEL| MB_ICONINFORMATION);
+				// int x = 1 / 0;   MSVC Got mad at us :DD
+			}
+
+            else if (crashChoice == 6) {
+            
+                int* p = (int*)malloc(sizeof(int));
+                free(p); 
+                free(p);
+            }
+            else if (crashChoice == 7) {
+
+                int* p = (int*)0xFFFFFFFF;
+                *p = 1;
+            }
+
+			else if (crashChoice == 8) {
+                char* p = (char*)malloc(5);
+                int* q = (int*)(p + 1); 
+                *q = 123; 
+
+			}
+			else if (crashChoice == 9) {
+				abort();
+			}
+
+            else if (crashChoice == 10)
+            {
+                raise(SIGSEGV);
+            }
+
+            else if (crashChoice == 11) {
+				cout << "Crash canceled.\n";
+            }
+
+            else if (crashChoice == 0) {
+                cout << "Crash Command Information:\n";
+                cout << "1. Null Pointer Dereference: Attempts to write to a null pointer, causing an access violation. Return Codes : "
+                    << ANSI_YELLOW << "0xC0000005 alias -1073741819" << ANSI_RESET << "\n";
+
+                cout << "2. Buffer Overflow: Writing beyond the bounds of a buffer. Return Codes : "
+                    << ANSI_YELLOW << "0xC0000005 alias -1073741819" << ANSI_RESET << "\n";
+
+                cout << "3. Stack Overflow: Exhausting the call stack with too many nested function calls. Return Codes : "
+                    << ANSI_YELLOW << "0xC00000FD alias -1073741571" << ANSI_RESET << "\n";
+
+                cout << "4. Invalid Free: Attempting to free memory that was not allocated or already freed. Return Codes : "
+                    << ANSI_YELLOW << "0xC0000005 alias -1073741819" << ANSI_RESET << "\n";
+
+                cout << "5. " << ANSI_YELLOW << "Divide by zero: Attempting to divide an integer by zero (deprecated). Return Codes : "
+                    << ANSI_YELLOW << "0xC0000094 alias -1073741676" << ANSI_RESET << "\n";
+
+                cout << "6. Double Free: Attempting to free the same memory twice. Return Codes : "
+                    << ANSI_YELLOW << "0xC0000005 alias -1073741819" << ANSI_RESET << "\n";
+
+                cout << "7. Access violation: Attempting to access an illegal memory address. Return Codes : "
+                    << ANSI_YELLOW << "0xC0000005 alias -1073741819" << ANSI_RESET << "\n";
+
+                cout << "8. Unaligned memory access: Accessing memory with incorrect alignment. Return Codes : "
+                    << ANSI_YELLOW << "0xC0000005 alias -1073741819" << ANSI_RESET << "\n";
+
+                cout << "9. Sending abort signal to Kernel: Using abort() to terminate the process and generate a crash dump. Return Codes : "
+                    << ANSI_YELLOW << "0xC0000409 alias -1073740791" << ANSI_RESET << "\n";
+
+                cout << "10. Segmentation Fault: Manually raising a segmentation fault using raise(SIGSEGV). Return Codes : "
+                    << ANSI_YELLOW << "0xC0000005 alias -1073741819" << ANSI_RESET << "\n";
+            }
+            else {
+				cout << "Crash command canceled.\n";
+            }
+        }
+
+  else if (cmd == "format") {
+      int formatChoice;
+      std::string input;
+
+      std::cout << "Number Format Conversions:\n";
+      std::cout << "1. Decimal to Hexadecimal (32-bit)\n";
+      std::cout << "2. Decimal to Hexadecimal (64-bit)\n";
+      std::cout << "3. Hexadecimal to Decimal (32-bit)\n";
+      std::cout << "4. Hexadecimal to Decimal (64-bit)\n";
+      std::cout << "5. Decimal to Binary (32-bit)\n";
+      std::cout << "6. Decimal to Binary (64-bit)\n";
+      std::cout << "7. Binary to Decimal (32-bit)\n";
+      std::cout << "8. Binary to Decimal (64-bit)\n";
+      std::cout << "9. Binary to Hexadecimal (32-bit)\n";
+      std::cout << "10. Binary to Hexadecimal (64-bit)\n";
+      std::cout << "11. Hexadecimal to Binary (32-bit)\n";
+      std::cout << "12. Hexadecimal to Binary (64-bit)\n";
+      std::cout << "Enter your choice: ";
+      std::cin >> formatChoice;
+
+      std::cout << "Enter the number: ";
+      std::cin >> input;
+
+      switch (formatChoice) {
+      case 1: {
+          int val = std::stoi(input);
+          std::cout << "Hex (trimmed): " << int2hex32_trim(val) << "\n";
+          std::cout << "Hex (leading zeros): " << int2hex32(val) << "\n";
+          break;
+      }
+      case 2: {
+          long long val = std::stoll(input);
+          std::cout << "Hex (trimmed): " << int2hex64_trim(val) << "\n";
+          std::cout << "Hex (leading zeros): " << int2hex64(val) << "\n";
+          break;
+      }
+      case 3: {
+          int val = hex2int32(input);
+          std::cout << "Decimal: " << val << "\n";
+          break;
+      }
+      case 4: {
+          long long val = hex2int64(input);
+          std::cout << "Decimal: " << val << "\n";
+          break;
+      }
+      case 5: {
+          int val = std::stoi(input);
+          std::cout << "Binary (trimmed): " << int2bin32_trim(val) << "\n";
+          std::cout << "Binary (leading zeros): " << int2bin32(val) << "\n";
+          break;
+      }
+      case 6: {
+          long long val = std::stoll(input);
+          std::cout << "Binary (trimmed): " << int2bin64_trim(val) << "\n";
+          std::cout << "Binary (leading zeros): " << int2bin64(val) << "\n";
+          break;
+      }
+      case 7: {
+          int val = bin2int32(input);
+          std::cout << "Decimal: " << val << "\n";
+          break;
+      }
+      case 8: {
+          long long val = bin2int64(input);
+          std::cout << "Decimal: " << val << "\n";
+          break;
+      }
+      case 9: {
+          std::cout << "Hex (trimmed): " << bin2hex32(input) << "\n";
+          std::cout << "Hex (leading zeros): " << int2hex32(bin2int32(input)) << "\n";
+          break;
+      }
+      case 10: {
+          std::cout << "Hex (trimmed): " << bin2hex64(input) << "\n";
+          std::cout << "Hex (leading zeros): " << int2hex64(bin2int64(input)) << "\n";
+          break;
+      }
+      case 11: {
+          std::cout << "Binary (trimmed): " << hex2bin32(input).erase(0, hex2bin32(input).find_first_not_of('0')) << "\n";
+          std::cout << "Binary (leading zeros): " << hex2bin32(input) << "\n";
+          break;
+      }
+      case 12: {
+          std::cout << "Binary (trimmed): " << hex2bin64(input).erase(0, hex2bin64(input).find_first_not_of('0')) << "\n";
+          std::cout << "Binary (leading zeros): " << hex2bin64(input) << "\n";
+          break;
+      }
+      default:
+          std::cout << "Invalid choice!\n";
+      }
+}
         else {
             cout << "Unknown command: " << cmd << " (type help)\n";
         }
