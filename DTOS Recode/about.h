@@ -9,5 +9,5 @@
 
 //ABOUT_H
 #define ABOUT_H
-#define VER "2.0.1"
+#define VER "2.1.1"
 #define AUTHOR "https://github.com/F13-a11y"
